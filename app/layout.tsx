@@ -4,6 +4,7 @@ import { Inter, Poppins } from "next/font/google"
 import { Analytics } from "@vercel/analytics/next"
 import { Suspense } from "react"
 import "./globals.css"
+import ErrorGuard from "@/components/analytics/error-guard"
 
 const inter = Inter({
   variable: "--font-inter",
@@ -34,6 +35,7 @@ export default function RootLayout({
     <html lang="en">
       <body className={`font-sans ${inter.variable} ${poppins.variable}`}>
         <Suspense fallback={null}>{children}</Suspense>
+        <ErrorGuard />
         <Analytics />
       </body>
     </html>
