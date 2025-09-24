@@ -7,20 +7,29 @@ export async function GET() {
     const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY
 
     if (!supabaseUrl || !serviceRoleKey) {
-      return NextResponse.json({ error: 'Missing SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY in environment' }, { status: 400 })
+      return NextResponse.json({ error: "Missing SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY in environment" }, { status: 400 })
     }
 
     const supabase = createClient(supabaseUrl, serviceRoleKey)
 
-    // Try a lightweight check on the "properties" table
-    const { data, error, status } = await supabase.from('properties').select('id').limit(1)
+    const tables = [
+      "profiles",
+      "properties",
+      "bookings",
+      "reviews",
+      "saved_properties",
+      "notifications",
+    ] as const
 
-    if (error) {
-      return NextResponse.json({ error: 'Query error', detail: error, status }, { status: 500 })
-    }
+    const checks = await Promise.all(
+      tables.map(async (t) => {
+        const { error } = await supabase.from(t).select("*", { count: "exact", head: true })
+        return { table: t, ok: !error, error }
+      }),
+    )
 
-    return NextResponse.json({ ok: true, sample: data })
+    return NextResponse.json({ ok: checks.every((c) => c.ok), checks })
   } catch (err) {
-    return NextResponse.json({ error: 'Unexpected error', detail: String(err) }, { status: 500 })
+    return NextResponse.json({ error: "Unexpected error", detail: String(err) }, { status: 500 })
   }
 }
