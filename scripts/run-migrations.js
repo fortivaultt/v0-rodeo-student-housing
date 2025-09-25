@@ -69,7 +69,12 @@ async function run() {
             .map((s) => s.trim())
             .filter(Boolean)
           for (const stmt of stmts) {
-            await client.query(stmt)
+            try {
+              await client.query(stmt)
+            } catch (stmtErr) {
+              console.error(JSON.stringify({ error: 'Statement failed', file: rel, statement: stmt.slice(0, 400), detail: String(stmtErr) }))
+              throw stmtErr
+            }
           }
           await client.query('insert into public.app_schema_migrations (filename) values ($1)', [rel])
           results.push({ filename: rel, status: 'applied-without-transaction' })
