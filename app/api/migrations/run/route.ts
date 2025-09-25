@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server"
 import path from "path"
 import fs from "fs"
-import { Client } from "pg"
+import { Pool } from "pg"
 
 export const runtime = "nodejs"
 
