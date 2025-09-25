@@ -16,7 +16,13 @@ export async function GET() {
   }
 
   const pool = new Pool({ connectionString: databaseUrl, ssl: { rejectUnauthorized: false } })
+  pool.on("error", () => {
+    // Ignore pool idle client errors (e.g., pgbouncer termination after request)
+  })
   const client = await pool.connect()
+  client.on("error", () => {
+    // Ignore client termination errors to avoid uncaughtException noise in dev
+  })
 
   try {
     await client.query(
