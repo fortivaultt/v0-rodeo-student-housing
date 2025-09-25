@@ -17,8 +17,7 @@ DO $$ BEGIN
   END IF;
 END $$;
 
--- Ensure RLS is enabled on storage.objects
-ALTER TABLE IF EXISTS storage.objects ENABLE ROW LEVEL SECURITY;
+-- RLS on storage.objects is managed by Supabase and enabled by default.
 
 -- Useful index for bucket lookups
 CREATE INDEX IF NOT EXISTS storage_objects_bucket_name_idx ON storage.objects (bucket_id, name);
@@ -29,7 +28,7 @@ CREATE INDEX IF NOT EXISTS storage_objects_owner_idx ON storage.objects (owner);
 --  - anyone to read files under the "public/" prefix
 --  - owners to read their own files
 DROP POLICY IF EXISTS "property-images-read" ON storage.objects;
-CREATE POLICY "property-images-read" ON storage.objects
+CREATE POLICY IF NOT EXISTS "property-images-read" ON storage.objects
   FOR SELECT
   USING (
     bucket_id = 'property-images'
@@ -43,7 +42,7 @@ CREATE POLICY "property-images-read" ON storage.objects
 --  - the public folder: public/*
 -- Owner must equal the uploading user
 DROP POLICY IF EXISTS "property-images-insert" ON storage.objects;
-CREATE POLICY "property-images-insert" ON storage.objects
+CREATE POLICY IF NOT EXISTS "property-images-insert" ON storage.objects
   FOR INSERT
   WITH CHECK (
     bucket_id = 'property-images'
@@ -56,7 +55,7 @@ CREATE POLICY "property-images-insert" ON storage.objects
 
 -- Update policy: only owners can update their objects in this bucket
 DROP POLICY IF EXISTS "property-images-update" ON storage.objects;
-CREATE POLICY "property-images-update" ON storage.objects
+CREATE POLICY IF NOT EXISTS "property-images-update" ON storage.objects
   FOR UPDATE
   USING (
     bucket_id = 'property-images' AND owner = auth.uid()
@@ -67,7 +66,7 @@ CREATE POLICY "property-images-update" ON storage.objects
 
 -- Delete policy: only owners can delete their objects in this bucket
 DROP POLICY IF EXISTS "property-images-delete" ON storage.objects;
-CREATE POLICY "property-images-delete" ON storage.objects
+CREATE POLICY IF NOT EXISTS "property-images-delete" ON storage.objects
   FOR DELETE
   USING (
     bucket_id = 'property-images' AND owner = auth.uid()
