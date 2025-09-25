@@ -19,9 +19,16 @@ END $$;
 
 -- RLS on storage.objects is managed by Supabase and enabled by default.
 
--- Useful index for bucket lookups
-CREATE INDEX IF NOT EXISTS storage_objects_bucket_name_idx ON storage.objects (bucket_id, name);
-CREATE INDEX IF NOT EXISTS storage_objects_owner_idx ON storage.objects (owner);
+-- Useful index for bucket lookups (only if we own the table)
+DO $$
+DECLARE owner_name text;
+BEGIN
+  SELECT tableowner INTO owner_name FROM pg_catalog.pg_tables WHERE schemaname='storage' AND tablename='objects';
+  IF owner_name = current_user THEN
+    CREATE INDEX IF NOT EXISTS storage_objects_bucket_name_idx ON storage.objects (bucket_id, name);
+    CREATE INDEX IF NOT EXISTS storage_objects_owner_idx ON storage.objects (owner);
+  END IF;
+END $$;
 
 -- Policies for property-images bucket
 DO $$
