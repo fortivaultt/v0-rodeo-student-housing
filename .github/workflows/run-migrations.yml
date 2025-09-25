@@ -1,0 +1,31 @@
+name: Run DB Migrations
+
+on:
+  workflow_dispatch: {}
+
+jobs:
+  run-migrations:
+    runs-on: ubuntu-latest
+    permissions: write-all
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'pnpm'
+
+      - name: Enable corepack and install pnpm
+        run: |
+          corepack enable
+          corepack prepare pnpm@latest --activate
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Run migrations
+        env:
+          POSTGRES_URL: ${{ secrets.POSTGRES_URL }}
+        run: node scripts/run-migrations.js
