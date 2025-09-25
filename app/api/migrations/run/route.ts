@@ -15,8 +15,8 @@ export async function GET() {
     return NextResponse.json({ error: "POSTGRES_URL_NON_POOLING not set" }, { status: 500 })
   }
 
-  const client = new Client({ connectionString: databaseUrl, ssl: { rejectUnauthorized: false } })
-  await client.connect()
+  const pool = new Pool({ connectionString: databaseUrl, ssl: { rejectUnauthorized: false } })
+  const client = await pool.connect()
 
   try {
     await client.query(
@@ -55,10 +55,12 @@ export async function GET() {
       }
     }
 
+    client.release()
+    await pool.end()
     return NextResponse.json({ ok: true, results })
   } catch (e) {
+    client.release()
+    await pool.end()
     return NextResponse.json({ error: String(e) }, { status: 500 })
-  } finally {
-    await client.end()
   }
 }
