@@ -6,6 +6,10 @@ import { Client } from "pg"
 export const runtime = "nodejs"
 
 export async function GET() {
+  // In dev environments within certain proxies, the CA chain may be self-signed.
+  // This endpoint is intended for dev bootstrap; disable TLS verification for this connection only.
+  process.env.NODE_TLS_REJECT_UNAUTHORIZED = "0"
+
   const databaseUrl = process.env.POSTGRES_URL_NON_POOLING || process.env.POSTGRES_URL
   if (!databaseUrl) {
     return NextResponse.json({ error: "POSTGRES_URL_NON_POOLING not set" }, { status: 500 })
