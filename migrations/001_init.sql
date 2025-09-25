@@ -162,6 +162,17 @@ create trigger on_auth_user_created
   after insert on auth.users
   for each row execute function handle_new_user();
 
+-- Compatibility for existing schemas (ensure required columns exist)
+alter table if exists properties add column if not exists property_type text;
+alter table if exists properties add column if not exists city text;
+alter table if exists properties add column if not exists price_per_month numeric;
+alter table if exists properties add column if not exists verification_status text default 'pending';
+alter table if exists properties add column if not exists is_active boolean default true;
+alter table if exists properties add column if not exists landlord_id uuid;
+alter table if exists properties add column if not exists images text[] default '{}';
+alter table if exists properties add column if not exists currency text default 'NGN';
+alter table if exists properties add column if not exists created_at timestamptz default now();
+
 -- Row Level Security
 alter table profiles enable row level security;
 alter table properties enable row level security;
@@ -262,12 +273,30 @@ drop policy if exists notifications_cud_self on notifications;
 create policy notifications_cud_self on notifications
   for all using (user_id = auth.uid()) with check (user_id = auth.uid());
 
--- Indexes for performance
-create index if not exists idx_properties_city on properties (city);
-create index if not exists idx_properties_type on properties (property_type);
-create index if not exists idx_properties_price_per_month on properties (price_per_month);
-create index if not exists idx_properties_landlord on properties (landlord_id);
-create index if not exists idx_bookings_tenant on bookings (tenant_id);
-create index if not exists idx_reviews_property on reviews (property_id);
-create index if not exists idx_saved_properties_user on saved_properties (user_id);
-create index if not exists idx_notifications_user_read on notifications (user_id, read);
+-- Indexes for performance (guarded by column existence)
+DO $$ BEGIN
+  IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='properties' AND column_name='city') THEN
+    CREATE INDEX IF NOT EXISTS idx_properties_city ON properties (city);
+  END IF;
+  IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='properties' AND column_name='property_type') THEN
+    CREATE INDEX IF NOT EXISTS idx_properties_type ON properties (property_type);
+  END IF;
+  IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='properties' AND column_name='price_per_month') THEN
+    CREATE INDEX IF NOT EXISTS idx_properties_price_per_month ON properties (price_per_month);
+  END IF;
+  IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='properties' AND column_name='landlord_id') THEN
+    CREATE INDEX IF NOT EXISTS idx_properties_landlord ON properties (landlord_id);
+  END IF;
+  IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='bookings' AND column_name='tenant_id') THEN
+    CREATE INDEX IF NOT EXISTS idx_bookings_tenant ON bookings (tenant_id);
+  END IF;
+  IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='reviews' AND column_name='property_id') THEN
+    CREATE INDEX IF NOT EXISTS idx_reviews_property ON reviews (property_id);
+  END IF;
+  IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='saved_properties' AND column_name='user_id') THEN
+    CREATE INDEX IF NOT EXISTS idx_saved_properties_user ON saved_properties (user_id);
+  END IF;
+  IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='notifications' AND column_name='user_id') THEN
+    CREATE INDEX IF NOT EXISTS idx_notifications_user_read ON notifications (user_id, read);
+  END IF;
+END $$;
