@@ -142,7 +142,7 @@
     left: 0;
     top: 0;
     bottom: 0;
-    width: 0%;
+    width: var(--rt, 0%);
     background: var(--primary);
     transition: width 200ms ease;
   }
@@ -155,6 +155,29 @@
     transform: rotate(3deg) translate(0, -2px);
     box-shadow: 0 0 10px var(--primary), 0 0 5px var(--primary);
     opacity: 0.8;
+  }
+
+  /* Full-screen overlay with spinner */
+  .route-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 55;
+    display: grid;
+    place-items: center;
+    background: var(--background);
+    animation: overlay-fade 160ms ease-out both;
+  }
+  .route-spinner,
+  .route-spinner-static {
+    width: 40px;
+    height: 40px;
+    border-radius: 9999px;
+    border: 3px solid var(--input);
+    border-top-color: var(--primary);
+  }
+  .route-spinner {
+    animation: spin 800ms linear infinite;
+    box-shadow: 0 0 12px var(--primary);
   }
 }
 
@@ -169,4 +192,13 @@
     transform: translateY(0) scale(1);
     filter: blur(0);
   }
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+@keyframes overlay-fade {
+  from { opacity: 0; }
+  to { opacity: 1; }
 }
