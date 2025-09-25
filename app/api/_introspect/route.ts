@@ -1,8 +1,19 @@
 import { NextResponse } from "next/server"
 import { createClient } from "@supabase/supabase-js"
 
-export async function GET() {
+export async function GET(request: Request) {
   try {
+    // Require admin header to avoid exposing service role on public GET
+    const expectedKey = process.env.ADMIN_INTROSPECT_KEY
+    const provided = request.headers.get("x-admin-introspect-key") || request.headers.get("authorization")
+    if (!expectedKey || !provided) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+    }
+    const token = provided.startsWith("Bearer ") ? provided.slice(7) : provided
+    if (token !== expectedKey) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 })
+    }
+
     const supabaseUrl = process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL
     const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY
 

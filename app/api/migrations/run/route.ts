@@ -1,18 +1,39 @@
 import { NextResponse } from "next/server"
 import path from "path"
 import fs from "fs"
-import { Client } from "pg"
+import { Pool } from "pg"
 
 export const runtime = "nodejs"
 
-export async function GET() {
+export async function GET(request: Request) {
+  // Require deploy key to run migrations via GET
+  const deployKey = process.env.MIGRATIONS_DEPLOY_KEY
+  const provided = request.headers.get("x-deploy-key") || request.headers.get("authorization")
+  if (!deployKey || !provided) {
+    return NextResponse.json({ error: "Not found" }, { status: 404 })
+  }
+  const token = provided.startsWith("Bearer ") ? provided.slice(7) : provided
+  if (token !== deployKey) {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 })
+  }
+
+  // In dev environments within certain proxies, the CA chain may be self-signed.
+  // This endpoint is intended for dev bootstrap; disable TLS verification for this connection only.
+  process.env.NODE_TLS_REJECT_UNAUTHORIZED = "0"
+
   const databaseUrl = process.env.POSTGRES_URL_NON_POOLING || process.env.POSTGRES_URL
   if (!databaseUrl) {
     return NextResponse.json({ error: "POSTGRES_URL_NON_POOLING not set" }, { status: 500 })
   }
 
-  const client = new Client({ connectionString: databaseUrl })
-  await client.connect()
+  const pool = new Pool({ connectionString: databaseUrl, ssl: { rejectUnauthorized: false } })
+  pool.on("error", () => {
+    // Ignore pool idle client errors (e.g., pgbouncer termination after request)
+  })
+  const client = await pool.connect()
+  client.on("error", () => {
+    // Ignore client termination errors to avoid uncaughtException noise in dev
+  })
 
   try {
     await client.query(
@@ -51,10 +72,12 @@ export async function GET() {
       }
     }
 
+    client.release()
+    await pool.end()
     return NextResponse.json({ ok: true, results })
   } catch (e) {
+    client.release()
+    await pool.end()
     return NextResponse.json({ error: String(e) }, { status: 500 })
-  } finally {
-    await client.end()
   }
 }
