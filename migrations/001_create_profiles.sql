@@ -39,7 +39,22 @@ begin
 end;
 $$ language plpgsql security definer;
 
-drop trigger if exists on_auth_user_created on auth.users;
-create trigger on_auth_user_created
-  after insert on auth.users
-  for each row execute procedure public.handle_new_user();
+DO $$
+BEGIN
+  BEGIN
+    EXECUTE 'DROP TRIGGER IF EXISTS on_auth_user_created ON auth.users';
+  EXCEPTION WHEN OTHERS THEN
+    RAISE NOTICE 'Skipping drop trigger on auth.users: %', SQLERRM;
+  END;
+END;
+$$;
+
+DO $$
+BEGIN
+  BEGIN
+    EXECUTE 'CREATE TRIGGER on_auth_user_created AFTER INSERT ON auth.users FOR EACH ROW EXECUTE PROCEDURE public.handle_new_user()';
+  EXCEPTION WHEN OTHERS THEN
+    RAISE NOTICE 'Skipping create trigger on auth.users: %', SQLERRM;
+  END;
+END;
+$$;
