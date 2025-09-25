@@ -5,6 +5,7 @@ import { Analytics } from "@vercel/analytics/next"
 import { Suspense } from "react"
 import "./globals.css"
 import ErrorGuard from "@/components/analytics/error-guard"
+import RouteTransition from "@/components/ui/route-transition"
 
 const inter = Inter({
   variable: "--font-inter",
@@ -34,7 +35,9 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body className={`font-sans ${inter.variable} ${poppins.variable}`}>
-        <Suspense fallback={null}>{children}</Suspense>
+        <RouteTransition>
+          <Suspense fallback={null}>{children}</Suspense>
+        </RouteTransition>
         <ErrorGuard />
         <Analytics />
       </body>
