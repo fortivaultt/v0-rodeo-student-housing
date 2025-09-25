@@ -2,13 +2,18 @@
 DO $$ BEGIN
   PERFORM 1 FROM storage.buckets WHERE id = 'property-images';
   IF NOT FOUND THEN
-    PERFORM storage.create_bucket(
-      id => 'property-images',
-      name => 'property-images',
-      public => false,
-      file_size_limit => 10485760,
-      allowed_mime_types => ARRAY['image/jpeg','image/png','image/webp','image/avif']
-    );
+    INSERT INTO storage.buckets (id, name, public)
+    VALUES ('property-images', 'property-images', false);
+  END IF;
+END $$;
+
+-- Configure optional settings (if columns exist)
+DO $$ BEGIN
+  IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema='storage' AND table_name='buckets' AND column_name='file_size_limit') THEN
+    UPDATE storage.buckets SET file_size_limit = 10485760 WHERE id = 'property-images';
+  END IF;
+  IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema='storage' AND table_name='buckets' AND column_name='allowed_mime_types') THEN
+    UPDATE storage.buckets SET allowed_mime_types = ARRAY['image/jpeg','image/png','image/webp','image/avif']::text[] WHERE id = 'property-images';
   END IF;
 END $$;
 
