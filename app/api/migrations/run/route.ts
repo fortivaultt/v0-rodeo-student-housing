@@ -11,7 +11,7 @@ export async function GET() {
     return NextResponse.json({ error: "POSTGRES_URL_NON_POOLING not set" }, { status: 500 })
   }
 
-  const client = new Client({ connectionString: databaseUrl })
+  const client = new Client({ connectionString: databaseUrl, ssl: { rejectUnauthorized: false } })
   await client.connect()
 
   try {
