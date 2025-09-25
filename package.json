@@ -52,6 +52,7 @@
     "next": "14.2.16",
     "next-themes": "latest",
     "pg": "^8.16.3",
+    "@sentry/node": "^7.66.0",
     "react": "^18",
     "react-day-picker": "latest",
     "react-dom": "^18",

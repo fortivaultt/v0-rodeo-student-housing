@@ -1,12 +1,13 @@
-name: Run DB Migrations
+name: CI → Backup & Run DB Migrations
 
 on:
   workflow_dispatch: {}
 
 jobs:
-  run-migrations:
+  ci-check:
     runs-on: ubuntu-latest
-    permissions: write-all
+    outputs:
+      migrate: ${{ steps.migrate_outcome.outcome }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -25,7 +26,48 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      - name: Run migrations
+      - name: Lint
+        run: pnpm run lint
+
+      - name: Build
+        run: pnpm run build
+
+  backup-and-migrate:
+    needs: ci-check
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Postgres client
+        uses: Harmon758/postgresql-action@v2
+        with:
+          postgresql version: '15'
+
+      - name: Create DB backup (pg_dump)
         env:
-          POSTGRES_URL: ${{ secrets.POSTGRES_URL }}
-        run: node scripts/run-migrations.js
+          PGPASSWORD: ${{ secrets.POSTGRES_PASSWORD }}
+        run: |
+          pg_dump --dbname=${{ secrets.POSTGRES_URL }} --format=custom --no-owner --no-acl -f backup.dump
+
+      - name: Upload backup archive
+        uses: actions/upload-artifact@v4
+        with:
+          name: db-backup
+          path: backup.dump
+
+      - name: Call secure migration endpoint
+        env:
+          MIGRATIONS_DEPLOY_KEY: ${{ secrets.MIGRATIONS_DEPLOY_KEY }}
+          DEPLOY_URL: ${{ secrets.DEPLOY_URL }}
+        run: |
+          if [ -z "$MIGRATIONS_DEPLOY_KEY" ]; then echo "MIGRATIONS_DEPLOY_KEY not set"; exit 1; fi
+          # Call the secure migration endpoint; endpoint must be protected and only accept the deploy key
+          curl -sS -X POST "$DEPLOY_URL/api/migrations/secure" -H "x-deploy-key: Bearer $MIGRATIONS_DEPLOY_KEY" -H "Content-Type: application/json" -d '{}' -o migrate_out.json || true
+          cat migrate_out.json
+
+      - name: Upload migrate result
+        uses: actions/upload-artifact@v4
+        with:
+          name: migrate-result
+          path: migrate_out.json
