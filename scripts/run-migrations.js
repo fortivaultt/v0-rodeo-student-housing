@@ -10,7 +10,7 @@ async function run() {
       process.exit(1)
     }
 
-    const client = new Client({ connectionString: databaseUrl })
+    const client = new Client({ connectionString: databaseUrl, ssl: { rejectUnauthorized: false } })
     await client.connect()
 
     await client.query(
