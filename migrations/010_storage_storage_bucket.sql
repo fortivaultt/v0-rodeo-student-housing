@@ -24,50 +24,53 @@ CREATE INDEX IF NOT EXISTS storage_objects_bucket_name_idx ON storage.objects (b
 CREATE INDEX IF NOT EXISTS storage_objects_owner_idx ON storage.objects (owner);
 
 -- Policies for property-images bucket
--- Read policy: allow
---  - anyone to read files under the "public/" prefix
---  - owners to read their own files
-DROP POLICY IF EXISTS "property-images-read" ON storage.objects;
-CREATE POLICY IF NOT EXISTS "property-images-read" ON storage.objects
-  FOR SELECT
-  USING (
-    bucket_id = 'property-images'
-    AND (
-      name LIKE 'public/%' OR (owner IS NOT NULL AND owner = auth.uid())
-    )
-  );
+DO $$
+DECLARE
+  owner_name text;
+BEGIN
+  SELECT tableowner INTO owner_name FROM pg_catalog.pg_tables WHERE schemaname='storage' AND tablename='objects';
+  IF owner_name = current_user THEN
+    -- Read policy: allow public/* and owner access
+    DROP POLICY IF EXISTS "property-images-read" ON storage.objects;
+    CREATE POLICY "property-images-read" ON storage.objects
+      FOR SELECT
+      USING (
+        bucket_id = 'property-images'
+        AND (
+          name LIKE 'public/%' OR (owner IS NOT NULL AND owner = auth.uid())
+        )
+      );
 
--- Insert policy: authenticated users may upload to either
---  - their own user folder: <uid>/*
---  - the public folder: public/*
--- Owner must equal the uploading user
-DROP POLICY IF EXISTS "property-images-insert" ON storage.objects;
-CREATE POLICY IF NOT EXISTS "property-images-insert" ON storage.objects
-  FOR INSERT
-  WITH CHECK (
-    bucket_id = 'property-images'
-    AND auth.role() = 'authenticated'
-    AND owner = auth.uid()
-    AND (
-      name LIKE (auth.uid()::text || '/%') OR name LIKE 'public/%'
-    )
-  );
+    -- Insert policy: owner uploads to <uid>/* or public/*
+    DROP POLICY IF EXISTS "property-images-insert" ON storage.objects;
+    CREATE POLICY "property-images-insert" ON storage.objects
+      FOR INSERT
+      WITH CHECK (
+        bucket_id = 'property-images'
+        AND auth.role() = 'authenticated'
+        AND owner = auth.uid()
+        AND (
+          name LIKE (auth.uid()::text || '/%') OR name LIKE 'public/%'
+        )
+      );
 
--- Update policy: only owners can update their objects in this bucket
-DROP POLICY IF EXISTS "property-images-update" ON storage.objects;
-CREATE POLICY IF NOT EXISTS "property-images-update" ON storage.objects
-  FOR UPDATE
-  USING (
-    bucket_id = 'property-images' AND owner = auth.uid()
-  )
-  WITH CHECK (
-    bucket_id = 'property-images' AND owner = auth.uid()
-  );
+    -- Update policy: only owner
+    DROP POLICY IF EXISTS "property-images-update" ON storage.objects;
+    CREATE POLICY "property-images-update" ON storage.objects
+      FOR UPDATE
+      USING (
+        bucket_id = 'property-images' AND owner = auth.uid()
+      )
+      WITH CHECK (
+        bucket_id = 'property-images' AND owner = auth.uid()
+      );
 
--- Delete policy: only owners can delete their objects in this bucket
-DROP POLICY IF EXISTS "property-images-delete" ON storage.objects;
-CREATE POLICY IF NOT EXISTS "property-images-delete" ON storage.objects
-  FOR DELETE
-  USING (
-    bucket_id = 'property-images' AND owner = auth.uid()
-  );
+    -- Delete policy: only owner
+    DROP POLICY IF EXISTS "property-images-delete" ON storage.objects;
+    CREATE POLICY "property-images-delete" ON storage.objects
+      FOR DELETE
+      USING (
+        bucket_id = 'property-images' AND owner = auth.uid()
+      );
+  END IF;
+END $$;
