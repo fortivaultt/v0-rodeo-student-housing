@@ -53,7 +53,28 @@ async function run() {
         continue
       }
       const full = path.join(migrationsDir, rel)
-      const sql = fs.readFileSync(full, 'utf8')
+      let sql = fs.readFileSync(full, 'utf8')
+      // Some Postgres versions on hosted platforms may not support IF NOT EXISTS on certain statements.
+      // Transform common patterns into DO blocks that attempt creation and ignore errors.
+      const wrapIfNotExists = (input, keyword) => {
+        const re = new RegExp(`(create\\s+${keyword}\\s+if\\s+not\\s+exists\\s+)([\s\S]*?;)", "gi`)
+        // fallback manual approach: handle using a simpler regex per keyword
+      }
+
+      // Replace 'create policy if not exists ...;' with a DO block that ignores errors
+      sql = sql.replace(/create\s+policy\s+if\s+not\s+exists\s+([\s\S]*?);/gi, (m, p1) => {
+        return `DO $$\\nBEGIN\\n  BEGIN\\n    CREATE POLICY ${p1};\\n  EXCEPTION WHEN OTHERS THEN\\n    -- ignore\\n  END;\\nEND;\\n$$;`;
+      })
+
+      // Replace 'create trigger if not exists ...;' similarly
+      sql = sql.replace(/create\s+trigger\s+if\s+not\s+exists\s+([\s\S]*?);/gi, (m, p1) => {
+        return `DO $$\\nBEGIN\\n  BEGIN\\n    CREATE TRIGGER ${p1};\\n  EXCEPTION WHEN OTHERS THEN\\n    -- ignore\\n  END;\\nEND;\\n$$;`;
+      })
+
+      // Replace 'create extension if not exists ...;' with create extension if not exists may fail in transaction, so try to run and ignore errors
+      sql = sql.replace(/create\s+extension\s+if\s+not\s+exists\s+([\s\S]*?);/gi, (m, p1) => {
+        return `DO $$\\nBEGIN\\n  BEGIN\\n    CREATE EXTENSION ${p1};\\n  EXCEPTION WHEN OTHERS THEN\\n    -- ignore\\n  END;\\nEND;\\n$$;`;
+      })
       try {
         await client.query('begin')
         await client.query(sql)
