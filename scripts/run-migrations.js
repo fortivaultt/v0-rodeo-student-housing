@@ -62,10 +62,23 @@ async function run() {
         results.push({ filename: rel, status: 'applied' })
       } catch (err) {
         await client.query('rollback')
-        results.push({ filename: rel, status: 'failed', error: String(err) })
-        console.error(JSON.stringify({ error: 'Migration failed', file: rel, detail: String(err), results }))
-        await client.end()
-        process.exit(2)
+        // Fallback: try executing statements individually (some DDL can't run inside a transaction)
+        try {
+          const stmts = sql
+            .split(/;\s*\n/)
+            .map((s) => s.trim())
+            .filter(Boolean)
+          for (const stmt of stmts) {
+            await client.query(stmt)
+          }
+          await client.query('insert into public.app_schema_migrations (filename) values ($1)', [rel])
+          results.push({ filename: rel, status: 'applied-without-transaction' })
+        } catch (err2) {
+          results.push({ filename: rel, status: 'failed', error: String(err2) })
+          console.error(JSON.stringify({ error: 'Migration failed', file: rel, detail: String(err2), results }))
+          await client.end()
+          process.exit(2)
+        }
       }
     }
 
