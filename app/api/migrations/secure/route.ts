@@ -2,7 +2,7 @@ import { NextResponse } from "next/server"
 import path from "path"
 import fs from "fs"
 import { Pool } from "pg"
-import * as Sentry from "../../../lib/sentry"
+import * as Sentry from "../../../../lib/sentry"
 
 export const runtime = "nodejs"
 
