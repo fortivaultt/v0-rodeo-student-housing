@@ -63,7 +63,15 @@ async function run() {
 
       // Replace 'create policy if not exists ...;' with a DO block that ignores errors
       sql = sql.replace(/create\s+policy\s+if\s+not\s+exists\s+([\s\S]*?);/gi, (m, p1) => {
-        return `DO $$\\nBEGIN\\n  BEGIN\\n    CREATE POLICY ${p1};\\n  EXCEPTION WHEN OTHERS THEN\\n    -- ignore\\n  END;\\nEND;\\n$$;`;
+        return `DO $$
+BEGIN
+  BEGIN
+    CREATE POLICY ${p1};
+  EXCEPTION WHEN OTHERS THEN
+    -- ignore
+  END;
+END;
+$$;`;
       })
 
       // Replace 'create trigger if not exists ...;' similarly
