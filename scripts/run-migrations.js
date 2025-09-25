@@ -76,7 +76,15 @@ $$;`;
 
       // Replace 'create trigger if not exists ...;' similarly
       sql = sql.replace(/create\s+trigger\s+if\s+not\s+exists\s+([\s\S]*?);/gi, (m, p1) => {
-        return `DO $$\\nBEGIN\\n  BEGIN\\n    CREATE TRIGGER ${p1};\\n  EXCEPTION WHEN OTHERS THEN\\n    -- ignore\\n  END;\\nEND;\\n$$;`;
+        return `DO $$
+BEGIN
+  BEGIN
+    CREATE TRIGGER ${p1};
+  EXCEPTION WHEN OTHERS THEN
+    -- ignore
+  END;
+END;
+$$;`;
       })
 
       // Replace 'create extension if not exists ...;' with create extension if not exists may fail in transaction, so try to run and ignore errors
