@@ -5,7 +5,18 @@ import { Pool } from "pg"
 
 export const runtime = "nodejs"
 
-export async function GET() {
+export async function GET(request: Request) {
+  // Require deploy key to run migrations via GET
+  const deployKey = process.env.MIGRATIONS_DEPLOY_KEY
+  const provided = request.headers.get("x-deploy-key") || request.headers.get("authorization")
+  if (!deployKey || !provided) {
+    return NextResponse.json({ error: "Not found" }, { status: 404 })
+  }
+  const token = provided.startsWith("Bearer ") ? provided.slice(7) : provided
+  if (token !== deployKey) {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 })
+  }
+
   // In dev environments within certain proxies, the CA chain may be self-signed.
   // This endpoint is intended for dev bootstrap; disable TLS verification for this connection only.
   process.env.NODE_TLS_REJECT_UNAUTHORIZED = "0"
